@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Apps Script 寫入測試頁面</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f4f6f8;
+      margin: 0;
+      padding: 40px 20px;
+      display: flex;
+      justify-content: center;
+    }
+    .card {
+      background: #ffffff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      width: 100%;
+      max-width: 500px;
+    }
+    h2 {
+      margin-top: 0;
+      color: #1a1a1a;
+      font-size: 1.25rem;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 10px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 6px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #cbd5e0;
+      border-radius: 6px;
+      box-sizing: border-box;
+      font-size: 0.95rem;
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #3182ce;
+      box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.15);
+    }
+    button {
+      width: 100%;
+      background-color: #3182ce;
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    button:hover {
+      background-color: #2b6cb0;
+    }
+    button:disabled {
+      background-color: #a0aec0;
+      cursor: not-allowed;
+    }
+    #status {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      display: none;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .success {
+      background-color: #c6f6d5;
+      color: #22543d;
+      border: 1px solid #9ae6b4;
+    }
+    .error {
+      background-color: #fed7d7;
+      color: #742a2a;
+      border: 1px solid #feb2b2;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>Google Apps Script 寫入測試</h2>
+    
+    <form id="apiTestForm">
+      <div class="form-group">
+        <label for="webAppUrl">Web 應用程式 URL *</label>
+        <input type="url" id="webAppUrl" placeholder="https://script.google.com/macros/s/.../exec" required>
+      </div>
+
+      <div class="form-group">
+        <label for="datetime">日期時間</label>
+        <input type="text" id="datetime">
+      </div>
+
+      <div class="form-group">
+        <label for="location">校園地點</label>
+        <input type="text" id="location" value="圖書館前花圃">
+      </div>
+
+      <div class="form-group">
+        <label for="gps">GPS 座標</label>
+        <input type="text" id="gps" value="25.033968, 121.564468">
+      </div>
+
+      <div class="form-group">
+        <label for="species">物種名稱</label>
+        <input type="text" id="species" value="麻雀">
+      </div>
+
+      <div class="form-group">
+        <label for="amountUnit">數量與單位</label>
+        <input type="text" id="amountUnit" value="5隻">
+      </div>
+
+      <div class="form-group">
+        <label for="remark">備註</label>
+        <textarea id="remark" rows="2">正在地面尋找草籽</textarea>
+      </div>
+
+      <button type="submit" id="submitBtn">發送資料至試算表</button>
+    </form>
+
+    <div id="status"></div>
+  </div>
+
+  <script>
+    // 自動帶入當前時間至「日期時間」欄位
+    function setNowDatetime() {
+      const now = new Date();
+      const YYYY = now.getFullYear();
+      const MM = String(now.getMonth() + 1).padStart(2, '0');
+      const DD = String(now.getDate()).padStart(2, '0');
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('datetime').value = `${YYYY}-${MM}-${DD} ${hh}:${mm}`;
+    }
+    
+    // 頁面載入時預設當前時間
+    setNowDatetime();
+
+    // 處理表單送出事件
+    document.getElementById('apiTestForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const url = document.getElementById('webAppUrl').value.trim();
+      const statusDiv = document.getElementById('status');
+      const submitBtn = document.getElementById('submitBtn');
+
+      // 組合傳送資料
+      const payload = {
+        datetime: document.getElementById('datetime').value,
+        location: document.getElementById('location').value,
+        gps: document.getElementById('gps').value,
+        species: document.getElementById('species').value,
+        amountUnit: document.getElementById('amountUnit').value,
+        remark: document.getElementById('remark').value
+      };
+
+      // 介面更新：傳送中
+      submitBtn.disabled = true;
+      submitBtn.innerText = "資料送出中...";
+      statusDiv.style.display = "none";
+
+      try {
+        // 使用 text/plain 發送 JSON 字串可避免 CORS 預檢失敗問題
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (result.status === "success") {
+          statusDiv.className = "success";
+          statusDiv.innerText = `✅ 成功：${result.message}`;
+        } else {
+          statusDiv.className = "error";
+          statusDiv.innerText = `❌ 錯誤：${result.message}`;
+        }
+      } catch (error) {
+        statusDiv.className = "error";
+        statusDiv.innerText = `⚠️ 請求失敗或發生 CORS 錯誤：\n${error.message}`;
+      } finally {
+        // 恢復按鈕狀態
+        submitBtn.disabled = false;
+        submitBtn.innerText = "發送資料至試算表";
+        statusDiv.style.display = "block";
+      }
+    });
+  </script>
+
+</body>
+</html>
